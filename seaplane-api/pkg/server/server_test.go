@@ -400,20 +400,43 @@ func TestServer_ServerAddresses(t *testing.T) {
 		t.Errorf("expected metricsServer.Addr=0.0.0.0:9090, got %s", server.metricsServer.Addr)
 	}
 
-	// Verify timeouts
+	// Verify timeouts — all three servers must have ReadHeaderTimeout to prevent
+	// Slowloris DoS attacks where the client sends headers very slowly.
+	if server.apiServer.ReadHeaderTimeout == 0 {
+		t.Error("apiServer.ReadHeaderTimeout must be set (Slowloris protection)")
+	}
 	if server.apiServer.ReadTimeout != 30*time.Second {
 		t.Errorf("expected apiServer.ReadTimeout=30s, got %v", server.apiServer.ReadTimeout)
 	}
-
 	if server.apiServer.WriteTimeout != 30*time.Second {
 		t.Errorf("expected apiServer.WriteTimeout=30s, got %v", server.apiServer.WriteTimeout)
 	}
+	if server.apiServer.IdleTimeout == 0 {
+		t.Error("apiServer.IdleTimeout must be set")
+	}
 
+	if server.healthServer.ReadHeaderTimeout == 0 {
+		t.Error("healthServer.ReadHeaderTimeout must be set (Slowloris protection)")
+	}
 	if server.healthServer.ReadTimeout != 10*time.Second {
 		t.Errorf("expected healthServer.ReadTimeout=10s, got %v", server.healthServer.ReadTimeout)
 	}
-
 	if server.healthServer.WriteTimeout != 10*time.Second {
 		t.Errorf("expected healthServer.WriteTimeout=10s, got %v", server.healthServer.WriteTimeout)
+	}
+	if server.healthServer.IdleTimeout == 0 {
+		t.Error("healthServer.IdleTimeout must be set")
+	}
+
+	if server.metricsServer.ReadHeaderTimeout == 0 {
+		t.Error("metricsServer.ReadHeaderTimeout must be set (Slowloris protection)")
+	}
+	if server.metricsServer.IdleTimeout == 0 {
+		t.Error("metricsServer.IdleTimeout must be set")
+	}
+
+	const wantMaxHeaderBytes = 1 << 14 // 16 KiB
+	if server.apiServer.MaxHeaderBytes != wantMaxHeaderBytes {
+		t.Errorf("expected apiServer.MaxHeaderBytes=%d (16 KiB), got %d", wantMaxHeaderBytes, server.apiServer.MaxHeaderBytes)
 	}
 }

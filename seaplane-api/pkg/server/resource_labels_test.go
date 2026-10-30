@@ -138,7 +138,7 @@ func TestLabelAndBodyLimits(t *testing.T) {
 		{"PATCH", "clusters/parent/labels", labels(49), 204}, // plus the stored "team" is 50
 		{"PATCH", "clusters/parent/labels", labels(50), 422},
 		{"POST", "dns_reservations", `{"metadata":{"name":"new","annotations":` + labels(51) + `}}`, 422},
-		{"POST", "dns_reservations", `{"metadata":{"name":"new","annotations":{"pad":"` + strings.Repeat("x", 1<<20) + `"}}}`, 400},
+		{"POST", "dns_reservations", `{"metadata":{"name":"new","annotations":{"pad":"` + strings.Repeat("x", 1<<20) + `"}}}`, 413},
 	} {
 		srv, _ := resourceServer(t, []string{`permit(principal, action, resource);`}, interceptor.Funcs{}, resourceFixtures()...)
 		if w := resourceRequest(srv, tc.method, tc.path, tc.body); w.Code != tc.status {

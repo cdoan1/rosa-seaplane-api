@@ -7,6 +7,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// ErrRequestBodyTooLarge is returned by the body-size middleware when the
+// request body exceeds the configured limit.
+var ErrRequestBodyTooLarge = APIError{
+	Code:       "REQUEST-001",
+	HTTPStatus: http.StatusRequestEntityTooLarge,
+	Message:    "request body too large",
+}
+
 // ErrInternalMarshal is written when response serialization fails before any
 // headers have been committed, ensuring the client receives a proper 500 instead
 // of an empty default 200.

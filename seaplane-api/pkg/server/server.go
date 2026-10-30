@@ -64,7 +64,7 @@ func New(cfg *config.Config, dbClient *seaplanedb.Client, authorizer *authz.Auth
 		}
 	})
 	apiRouter.Use(middleware.Identity)
-	apiRouter.Use(limitBody)
+	apiRouter.Use(middleware.LimitRequestBody(cfg.Server.MaxRequestBodyBytes))
 
 	// Rate limiting middleware
 	var redisCloser io.Closer
@@ -171,22 +171,29 @@ func New(cfg *config.Config, dbClient *seaplanedb.Client, authorizer *authz.Auth
 		logger:      logger,
 		redisCloser: redisCloser,
 		apiServer: &http.Server{
-			Addr:         fmt.Sprintf("%s:%d", cfg.Server.APIBindAddress, cfg.Server.APIPort),
-			Handler:      apiHandler,
-			ReadTimeout:  30 * time.Second,
-			WriteTimeout: 30 * time.Second,
+			Addr:              fmt.Sprintf("%s:%d", cfg.Server.APIBindAddress, cfg.Server.APIPort),
+			Handler:           apiHandler,
+			ReadHeaderTimeout: 10 * time.Second, // prevent Slowloris — header must arrive within 10s
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			IdleTimeout:       60 * time.Second,
+			MaxHeaderBytes:    1 << 14, // 16 KiB — sufficient for SigV4 auth headers
 		},
 		healthServer: &http.Server{
-			Addr:         fmt.Sprintf("%s:%d", cfg.Server.HealthBindAddress, cfg.Server.HealthPort),
-			Handler:      healthRouter,
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
+			Addr:              fmt.Sprintf("%s:%d", cfg.Server.HealthBindAddress, cfg.Server.HealthPort),
+			Handler:           healthRouter,
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       10 * time.Second,
+			WriteTimeout:      10 * time.Second,
+			IdleTimeout:       30 * time.Second,
 		},
 		metricsServer: &http.Server{
-			Addr:         fmt.Sprintf("%s:%d", cfg.Server.MetricsBindAddress, cfg.Server.MetricsPort),
-			Handler:      metricsRouter,
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
+			Addr:              fmt.Sprintf("%s:%d", cfg.Server.MetricsBindAddress, cfg.Server.MetricsPort),
+			Handler:           metricsRouter,
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       10 * time.Second,
+			WriteTimeout:      10 * time.Second,
+			IdleTimeout:       30 * time.Second,
 		},
 		healthHandler: healthHandler,
 	}, nil
@@ -261,16 +268,6 @@ func (s *Server) shutdown() error {
 
 	s.logger.Info("all servers stopped")
 	return nil
-}
-
-// maxRequestBytes caps request bodies; an oversized body fails the handler's read with 400.
-const maxRequestBytes = 1 << 20
-
-func limitBody(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBytes)
-		next.ServeHTTP(w, r)
-	})
 }
 
 // allowlistAccounts marks requests from accounts outside the bundle that are on the

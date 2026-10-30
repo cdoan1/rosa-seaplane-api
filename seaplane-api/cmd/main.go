@@ -174,6 +174,12 @@ func runServe(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if n, ok := parseMaxRequestBodyBytes(os.Getenv("MAX_REQUEST_BODY_BYTES")); ok {
+		cfg.Server.MaxRequestBodyBytes = n
+	} else if os.Getenv("MAX_REQUEST_BODY_BYTES") != "" {
+		logger.Warn("invalid MAX_REQUEST_BODY_BYTES, using default", "value", os.Getenv("MAX_REQUEST_BODY_BYTES"))
+	}
+
 	// Create seaplane DB client (Postgres via pgruntime)
 	dbClient, err := seaplanedb.NewClient(context.Background(), cfg.DB.DSN, logger)
 	if err != nil {
@@ -238,4 +244,17 @@ func createLogger(level, format string) *slog.Logger {
 	}
 
 	return slog.New(handler)
+}
+
+// parseMaxRequestBodyBytes parses a MAX_REQUEST_BODY_BYTES string value.
+// Returns (n, true) when v is a valid positive integer, (0, false) otherwise.
+func parseMaxRequestBodyBytes(v string) (int64, bool) {
+	if v == "" {
+		return 0, false
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil || n <= 0 {
+		return 0, false
+	}
+	return n, true
 }

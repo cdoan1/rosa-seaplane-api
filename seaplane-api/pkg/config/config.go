@@ -39,15 +39,16 @@ type RegionalConfig struct {
 }
 
 type ServerConfig struct {
-	APIBindAddress     string
-	APIPort            int
-	GRPCBindAddress    string
-	GRPCPort           int
-	HealthBindAddress  string
-	HealthPort         int
-	MetricsBindAddress string
-	MetricsPort        int
-	ShutdownTimeout    time.Duration
+	APIBindAddress      string
+	APIPort             int
+	GRPCBindAddress     string
+	GRPCPort            int
+	HealthBindAddress   string
+	HealthPort          int
+	MetricsBindAddress  string
+	MetricsPort         int
+	ShutdownTimeout     time.Duration
+	MaxRequestBodyBytes int64 // maximum request body size in bytes; 0 uses the package default
 }
 
 type LoggingConfig struct {

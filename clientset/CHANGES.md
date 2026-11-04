@@ -1,5 +1,11 @@
 # Changes
 
+## 0.1.26 Nov 04 2026
+
+- chore(clientset): bump version to clientset/v0.1.26
+- Remove incorrect kubelet association from ClusterConfiguration
+
+
 ## 0.1.26 Nov 02 2026
 
 - Remove incorrect kubelet association from ClusterConfiguration

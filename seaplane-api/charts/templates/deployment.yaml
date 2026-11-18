@@ -61,6 +61,16 @@ spec:
               value: {{ required "platformApi.authz.tables.global is required" $tables.global | quote }}
             - name: AUTHZ_REGIONAL_TABLE
               value: {{ required "platformApi.authz.tables.regional is required" $tables.regional | quote }}
+            # Account linking (Phase 4 PoC): empty values leave the linking
+            # endpoints mounted but returning 503.
+            - name: LINKING_TABLE
+              value: {{ .Values.platformApi.linking.table | default "" | quote }}
+            - name: RH_TOKEN_ISSUER
+              value: {{ .Values.platformApi.linking.rhTokenIssuer | default "" | quote }}
+            - name: RH_TOKEN_JWKS_URL
+              value: {{ .Values.platformApi.linking.rhTokenJwksUrl | default "" | quote }}
+            - name: RH_TOKEN_AUDIENCE
+              value: {{ .Values.platformApi.linking.rhTokenAudience | default "" | quote }}
             # Only the RC account may change resource enrollment.
             - name: AWS_ACCOUNT_ID
               value: {{ .Values.global.aws_account_id | quote }}

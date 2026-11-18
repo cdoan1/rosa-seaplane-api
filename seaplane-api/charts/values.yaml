@@ -79,6 +79,14 @@ platformApi:
     # DynamoDB table names {policies, global, regional}. Required.
     tables: {}
 
+  # Account linking (Phase 4 PoC). Empty strings leave the linking
+  # endpoints mounted but returning 503.
+  linking:
+    table: ""
+    rhTokenIssuer: ""
+    rhTokenJwksUrl: ""
+    rhTokenAudience: ""
+
   # Rate Limiting configuration
   rateLimit:
     enabled: true

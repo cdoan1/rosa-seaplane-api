@@ -1,0 +1,15 @@
+{
+  "name": "@seaplane/platform-api-contracts",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts"
+    }
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
+  }
+}

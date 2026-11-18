@@ -219,6 +219,67 @@ Tasks:
       custom gateway, with Cedar authorizing the linked-ARN identity —
       verified to behave identically to a CLI caller on the same ARN.
 
+### P4.B — Token-mediator BFF (production security path for the console)
+
+**Why:** code-review finding #8 — the console currently keeps OIDC tokens
+in `sessionStorage`, readable by any JavaScript on the page. Acceptable
+for the PoC, wrong for production. The fix is a **thin token-mediator
+BFF**, and it composes with the custom-authorizer design *because* that
+design verifies tokens rather than federating to AWS:
+
+```
+browser ──httpOnly session cookie──> BFF (confidential PKCE client,
+                                        tokens held server-side only)
+                                        │ Authorization: Bearer <token>
+                                        │ X-Seaplane-Arn
+                                        ▼
+                          custom-authorizer gateway (UNCHANGED)
+                                        ▼
+                          Lambda authorizer → platform-api → Cedar
+```
+
+**This is not the discarded BFF.** The rejected day-o design federated the
+user to **AWS STS roles** and SigV4-signed requests server-side — a
+second identity model. This BFF only owns the OIDC session and forwards
+the same bearer-token requests the browser sends today. The Lambda
+authorizer, linking store, gateway, identity headers, and Cedar are
+untouched; the migration changes only the console's auth/api modules and
+adds one service.
+
+Benefits: tokens never reach JavaScript (XSS cannot exfiltrate a refresh
+token), no browser-side refresh logic, no CORS (same-origin calls), and
+the confidential client enables server-side session revocation.
+
+Tasks:
+
+- [ ] P4.B.1 BFF service (`console/apps/bff`, Go or Fastify — lean toward
+      Go for the team's tooling): OIDC Authorization Code + PKCE as a
+      **confidential client** (client secret from the env's secret
+      workflow, never in the repo or browser); server-side token storage
+      (in-memory per pod is fine at PoC scale); httpOnly, Secure, SameSite
+      cookie session; CSRF protection on state-changing routes.
+- [ ] P4.B.2 Same-origin proxy: `/api/*` → the custom-authorizer gateway,
+      attaching `Authorization: Bearer` and forwarding `X-Seaplane-Arn`
+      from the browser (the ARN selection stays client-side — it is a
+      UI concern, not a credential). Flow 2a (`/api/account_links`)
+      proxies token-only.
+- [ ] P4.B.3 Console changes: `src/auth.ts` shrinks to login/logout via
+      the BFF's session endpoints (no PKCE, no tokens, no refresh in the
+      browser); `src/api.ts` calls same-origin paths (the `/bff/v1/` →
+      `/api/v0/` mapping becomes literal again). Keep the direct-call
+      client behind a build flag as the fallback for local development
+      against a deployed gateway.
+- [ ] P4.B.4 Deploy: chart + ArgoCD wrapper for the BFF (patterned on the
+      console chart); it shares the console's ALB target group or gets its
+      own; session secret and OIDC client secret via the env's secret
+      workflow.
+- [ ] P4.B.5 Tests: session lifecycle (login, refresh, logout, expiry),
+      cookie flags, CSRF rejection, token never present in any response
+      body or log; e2e pass over the same demo flow.
+- [ ] P4.B.6 Update the threat-model notes: the BFF is now a
+      security-relevant component (holds live tokens) — least privilege,
+      no token logging, short session lifetimes.
+
 ### P4.1 — Account-linking design and store (longest lead — start first)
 - [ ] **PoC schema decided (D-T4)**: single DynamoDB table, PK = token
       `sub`, one item per linked ARN (sort key = ARN, attributes `arn`,
@@ -310,6 +371,11 @@ The day-o reference repo and `rosa` (CLI) are not touched by Phase 4 code
   changes.
 
 ## Exit criteria
+
+- (added with P4.B) The console runs behind the token-mediator BFF: no
+  OIDC tokens in the browser, httpOnly cookie session, CSRF-protected;
+  the demo flow works end to end with the gateway and authorizer
+  unchanged.
 - UI can authenticate with an RH Token, list linked ARNs (2a), and have an
   ARN-selected request (2b) authorized and forwarded with correct identity
   headers; Cedar authorizes it like any ARN caller.
@@ -350,6 +416,9 @@ TIER 3 — example-backed work, deferred to last (day-o repo supplies working
   P4.C.6    end-to-end demo                                  (convergence)
 
 TIER 4 — hardening and closeout
+  P4.B      token-mediator BFF (production security path, code-review
+            finding #8: httpOnly cookie session, tokens server-side;
+            gateway and authorizer unchanged)
   P4.5/P4.6 security review, alerting, threat model, full test pass
   P4.7      docs
 ```

@@ -51,7 +51,7 @@ func TestPersistentResolutionFailsClosed(t *testing.T) {
 			t.Fatal(err)
 		}
 		db := seaplanedb.NewClientFrom(fake.NewClientBuilder().WithScheme(scheme).WithObjects(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "accounts", Name: resourceTestAccount}}).Build(), logger)
-		srv, err := New(cfg, db, management, logger)
+		srv, err := New(cfg, db, management, nil, logger)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -22,7 +22,7 @@ import (
 func newConfiguredServer(t *testing.T, cfg *config.Config, db *seaplanedb.Client, logger *slog.Logger) (*Server, error) {
 	t.Helper()
 	cfg.Regional.AWSRegion = "us-east-1"
-	return New(cfg, db, authztest.Management(t, resourceTestAccount, "us-east-1"), logger)
+	return New(cfg, db, authztest.Management(t, resourceTestAccount, "us-east-1"), nil, logger)
 }
 
 func authzMetricSamples(t *testing.T) map[string]float64 {
@@ -75,7 +75,7 @@ func TestServerEnrollment(t *testing.T) {
 	cfg := config.NewConfig()
 	management := authztest.Management(t, resourceTestAccount, "us-east-1", `permit(principal, action in Seaplane::Action::"ReadOnly", resource);`)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	srv, err := New(cfg, enrolledDB(t, logger, resourceTestAccount), management, logger)
+	srv, err := New(cfg, enrolledDB(t, logger, resourceTestAccount), management, nil, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestServerRateLimitBeforeAdmission(t *testing.T) {
 	cfg.RateLimit = config.RateLimitConfig{Enabled: true, InMemory: true, DefaultRate: 1, DefaultBurst: 1, DefaultWindow: 60}
 	management := authztest.Management(t, resourceTestAccount, "us-east-1", `permit(principal, action in Seaplane::Action::"ReadOnly", resource);`)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	srv, err := New(cfg, nil, management, logger)
+	srv, err := New(cfg, nil, management, nil, logger)
 	if err != nil {
 		t.Fatal(err)
 	}

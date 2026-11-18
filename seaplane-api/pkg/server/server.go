@@ -33,7 +33,7 @@ type Server struct {
 }
 
 // New creates a server using mandatory stored authorization.
-func New(cfg *config.Config, dbClient *seaplanedb.Client, authorization *authz.Service, logger *slog.Logger) (*Server, error) {
+func New(cfg *config.Config, dbClient *seaplanedb.Client, authorization *authz.Service, linkingHandler *apphandlers.LinkingHandler, logger *slog.Logger) (*Server, error) {
 	if authorization == nil {
 		return nil, fmt.Errorf("authorization service is required")
 	}
@@ -49,6 +49,11 @@ func New(cfg *config.Config, dbClient *seaplanedb.Client, authorization *authz.S
 	oidcConfigHandler := apphandlers.NewOidcConfigHandler(dbClient, cfg.Regional.OIDCIssuerBaseURL, authorization, logger, cfg.Regional.AWSRegion)
 	dnsReservationHandler := apphandlers.NewDNSReservationHandler(dbClient, authorization, logger)
 	accountsHandler := apphandlers.NewAccountsHandler(dbClient, cfg.Regional.AccountID, logger)
+	if linkingHandler == nil {
+		// Nil handler keeps the endpoints mounted but returning 503
+		// (ErrLinkingNotConfigured) when linking is not configured.
+		linkingHandler = apphandlers.NewLinkingHandler(nil, nil, logger)
+	}
 
 	// Create API router
 	apiRouter := mux.NewRouter()
@@ -137,6 +142,16 @@ func New(cfg *config.Config, dbClient *seaplanedb.Client, authorization *authz.S
 	accountsRouter.Use(middleware.RequireIdentity(logger, func(context.Context, string) bool { return true }))
 	accountsRouter.HandleFunc("", accountsHandler.Enroll).Methods(http.MethodPost)
 	accountsRouter.HandleFunc("/{id}", accountsHandler.Unenroll).Methods(http.MethodDelete)
+
+	// Account linking routes (Phase 4 PoC). Deliberately registered at the
+	// top level, outside the RequireIdentity subrouters: GET is Flow 2a
+	// (token-only, no ARN yet — D-P4.4a), and POST/DELETE carry their own
+	// SigV4-identity check in the handler (the gateway-proven account is
+	// what authorizes the link). Enrollment is intentionally not required —
+	// linking may precede account enrollment.
+	apiRouter.HandleFunc("/api/v0/account_links", linkingHandler.List).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/api/v0/account_links", linkingHandler.Link).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/api/v0/account_links", linkingHandler.Unlink).Methods(http.MethodDelete)
 
 	resourceRouter := apiRouter.NewRoute().Subrouter()
 	resourceRouter.Use(middleware.RequireIdentity(logger, isEnrolled))

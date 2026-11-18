@@ -160,6 +160,16 @@ var (
 	ErrAccountsForbidden APIError
 	ErrAccountsInvalidID APIError
 	ErrAccountsFailed    APIError
+
+	// Linking errors
+	ErrLinkingNotConfigured      APIError
+	ErrLinkingInvalidRequest     APIError
+	ErrLinkingInvalidARN         APIError
+	ErrLinkingIdentityRequired   APIError
+	ErrLinkingARNAccountMismatch APIError
+	ErrLinkingTokenRequired      APIError
+	ErrLinkingTokenInvalid       APIError
+	ErrLinkingStoreFailed        APIError
 )
 
 // Info error codes
@@ -319,6 +329,15 @@ func init() {
 	ErrAccountsForbidden = APIError{Code: "ACCOUNTS-MGMT-001", HTTPStatus: http.StatusForbidden, Message: "Only the platform account may manage the account allowlist"}
 	ErrAccountsInvalidID = APIError{Code: "ACCOUNTS-MGMT-002", HTTPStatus: http.StatusBadRequest, Message: "accountId must be a 12-digit AWS account ID"}
 	ErrAccountsFailed = APIError{Code: "ACCOUNTS-MGMT-003", HTTPStatus: http.StatusInternalServerError, Message: "Failed to update the account allowlist"}
+
+	ErrLinkingNotConfigured = APIError{Code: "ACCOUNT-LINKS-MGMT-001", HTTPStatus: http.StatusServiceUnavailable, Message: "Account linking is not configured"}
+	ErrLinkingInvalidRequest = APIError{Code: "ACCOUNT-LINKS-MGMT-002", HTTPStatus: http.StatusBadRequest, Message: "Request body must be JSON with an arn field"}
+	ErrLinkingInvalidARN = APIError{Code: "ACCOUNT-LINKS-MGMT-003", HTTPStatus: http.StatusBadRequest, Message: "arn must be a well-formed IAM role or user ARN"}
+	ErrLinkingIdentityRequired = APIError{Code: "ACCOUNT-LINKS-MGMT-004", HTTPStatus: http.StatusForbidden, Message: "SigV4 caller identity is required to manage links"}
+	ErrLinkingARNAccountMismatch = APIError{Code: "ACCOUNT-LINKS-MGMT-005", HTTPStatus: http.StatusForbidden, Message: "arn belongs to a different account than the caller"}
+	ErrLinkingTokenRequired = APIError{Code: "ACCOUNT-LINKS-MGMT-006", HTTPStatus: http.StatusUnauthorized, Message: "A valid Red Hat identity token is required"}
+	ErrLinkingTokenInvalid = APIError{Code: "ACCOUNT-LINKS-MGMT-007", HTTPStatus: http.StatusUnauthorized, Message: "Red Hat identity token is invalid or expired"}
+	ErrLinkingStoreFailed = APIError{Code: "ACCOUNT-LINKS-MGMT-008", HTTPStatus: http.StatusInternalServerError, Message: "Failed to update account links"}
 
 	// Info
 	ErrInfoRegionalAccountUnavailable = APIError{Code: "INFO-001", HTTPStatus: http.StatusServiceUnavailable, Message: "regional account ID is not configured"}

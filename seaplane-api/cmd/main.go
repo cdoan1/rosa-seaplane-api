@@ -12,10 +12,13 @@ import (
 	"time"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/spf13/cobra"
 
 	"github.com/openshift-online/rosa-seaplane-api/seaplane-api/pkg/clients/seaplanedb"
 	"github.com/openshift-online/rosa-seaplane-api/seaplane-api/pkg/config"
+	apphandlers "github.com/openshift-online/rosa-seaplane-api/seaplane-api/pkg/handlers"
+	"github.com/openshift-online/rosa-seaplane-api/seaplane-api/pkg/linking"
 	"github.com/openshift-online/rosa-seaplane-api/seaplane-api/pkg/server"
 )
 
@@ -102,6 +105,31 @@ func runServe(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Account-linking (Phase 4 PoC): DynamoDB link table + Red Hat identity
+	// token verification. All four values are optional; when unset, the
+	// linking endpoints stay mounted but return 503.
+	cfg.Linking = config.LinkingConfig{
+		Table:    os.Getenv("LINKING_TABLE"),
+		Issuer:   os.Getenv("RH_TOKEN_ISSUER"),
+		JWKSURL:  os.Getenv("RH_TOKEN_JWKS_URL"),
+		Audience: os.Getenv("RH_TOKEN_AUDIENCE"),
+	}
+	var linkingHandler *apphandlers.LinkingHandler
+	if cfg.Linking.Table != "" && cfg.Linking.Issuer != "" && cfg.Linking.JWKSURL != "" {
+		linkingHandler = apphandlers.NewLinkingHandler(
+			linking.NewStore(dynamodb.NewFromConfig(awsCfg), cfg.Linking.Table),
+			linking.NewJWTVerifier(linking.TokenConfig{
+				Issuer:   cfg.Linking.Issuer,
+				JWKSURL:  cfg.Linking.JWKSURL,
+				Audience: cfg.Linking.Audience,
+			}),
+			logger,
+		)
+		logger.Info("account linking enabled", "table", cfg.Linking.Table, "issuer", cfg.Linking.Issuer)
+	} else {
+		logger.Info("account linking disabled (LINKING_TABLE / RH_TOKEN_ISSUER / RH_TOKEN_JWKS_URL not set)")
+	}
+
 	cfg.Logging.Level = logLevel
 	cfg.Logging.Format = logFormat
 	if postgresDSN == "" {
@@ -177,7 +205,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create server
-	srv, err := server.New(cfg, dbClient, authorization, logger)
+	srv, err := server.New(cfg, dbClient, authorization, linkingHandler, logger)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}

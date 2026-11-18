@@ -38,7 +38,7 @@ func TestRCGrantRequiresEnrollment(t *testing.T) {
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	db := seaplanedb.NewClientFrom(fake.NewClientBuilder().WithScheme(scheme).WithObjects(resourceFixtures()...).Build(), logger)
-	srv, err := New(cfg, db, management, logger)
+	srv, err := New(cfg, db, management, nil, logger)
 	if err != nil {
 		t.Fatal(err)
 	}

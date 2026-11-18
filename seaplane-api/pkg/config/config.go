@@ -8,6 +8,7 @@ type Config struct {
 	Regional  RegionalConfig
 	Logging   LoggingConfig
 	RateLimit RateLimitConfig
+	Linking   LinkingConfig
 }
 
 type RateLimitConfig struct {
@@ -31,6 +32,18 @@ type RegionalConfig struct {
 	AWSRegion string
 	// AccountID is the platform's own AWS account, the only caller of the account allowlist.
 	AccountID string
+}
+
+// LinkingConfig configures the Phase 4 PoC account-linking endpoints:
+// the DynamoDB link table and Red Hat identity token verification. The
+// issuer is the PoC Keycloak behind CloudFront (D-P4-token); issuer, JWKS
+// URL, and audience are configuration so swapping to real Red Hat SSO is
+// a config change.
+type LinkingConfig struct {
+	Table    string
+	Issuer   string
+	JWKSURL  string
+	Audience string
 }
 
 type ServerConfig struct {

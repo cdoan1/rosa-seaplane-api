@@ -24,7 +24,7 @@ func TestManagementAdmission(t *testing.T) {
 	cfg.Regional.AccountID = "123456789012"
 	cfg.Regional.AWSRegion = "us-east-1"
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	srv, err := New(cfg, enrolledDB(t, logger), authztest.Management(t, "333333333333", "us-east-1"), logger)
+	srv, err := New(cfg, enrolledDB(t, logger), authztest.Management(t, "333333333333", "us-east-1"), nil, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestManagementBackendHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := New(cfg, enrolledDB(t, logger, "999999999999"), management, logger)
+	srv, err := New(cfg, enrolledDB(t, logger, "999999999999"), management, nil, logger)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -37,7 +37,7 @@ func newManagementServer(t *testing.T) *Server {
 		t.Fatal(err)
 	}
 	authztest.SeedAdmin(t, client, authztest.Tables, "999999999999")
-	srv, err := New(cfg, enrolledDB(t, logger, "999999999999"), management, logger)
+	srv, err := New(cfg, enrolledDB(t, logger, "999999999999"), management, nil, logger)
 	if err != nil {
 		t.Fatal(err)
 	}

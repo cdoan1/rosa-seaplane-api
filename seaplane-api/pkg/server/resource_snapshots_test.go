@@ -69,7 +69,7 @@ func resourceServerWithManagement(t *testing.T, customer []string, hooks interce
 	cfg.Server.MaxRequestBodyBytes = 1 << 20 // 1 MiB — match the upstream hardcoded limit
 	management := authztest.Management(t, resourceTestAccount, "us-east-1", customer...)
 	db := seaplanedb.NewClientFrom(fc, logger)
-	srv, err := New(cfg, db, management, logger)
+	srv, err := New(cfg, db, management, nil, logger)
 	if err != nil {
 		t.Fatal(err)
 	}

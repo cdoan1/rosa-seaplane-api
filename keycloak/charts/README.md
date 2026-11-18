@@ -40,3 +40,25 @@ inline-secret option — all documented as PoC simplifications in
 `docs/poc/preflight-ui-login/poc-decisions.md` (D-P4-token). The authorizer
 and platform API consume only the issuer/JWKS URLs, so swapping to Red Hat
 SSO later is a configuration change.
+
+## Data persistence note (security)
+
+The PostgreSQL PVC persists realm config, **user password hashes** (Keycloak
+PBKDF2-SHA512), **client secrets**, session records, and user-profile data
+(PII). This is deliberate — day-o's `emptyDir` wipes the realm on every pod
+restart, which is worse for a working PoC. Rules that keep it safe:
+
+- **Test users only.** The production issuer is Red Hat SSO; this Keycloak
+  deployment (PVC included) is **deleted at PoC teardown, never promoted**
+  with real users in it.
+- **No AWS linkage in Keycloak.** The token→ARN mapping lives in the
+  DynamoDB linking table, not in Keycloak attributes — compromising this DB
+  grants no account access.
+- **At-rest encryption**: the PVC relies on the RC account's EBS
+  encryption-by-default (verify with `aws ec2 get-ebs-encryption-by-default`);
+  if not enabled, set `keycloak.postgres.storage.className` to an encrypted
+  storage class.
+- Bootstrap admin credentials come from the `keycloak-secrets` k8s Secret,
+  never the DB.
+- Keep realm token lifetimes short (P4.0.2) — caps the blast radius of any
+  persisted session data.

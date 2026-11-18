@@ -129,6 +129,16 @@ Red Hat SSO later is a config change. Only standard OIDC claims (`sub`,
 This is issuer substitution only — not the discarded BFF pattern (no STS
 federation, no SigV4 custody, no BFF service).
 
+**Data persistence caveat:** the Keycloak PostgreSQL PVC persists realm
+config, password hashes, client secrets, sessions, and PII. It exists for
+realm continuity (emptyDir wipes the realm on restart — worse for a
+working PoC). It is **PoC-scoped and destroyed at teardown — never
+promoted with real users**. The production issuer is Red Hat SSO. The
+token→ARN mapping deliberately lives in DynamoDB, not Keycloak, so the DB
+holds no AWS access. At-rest protection relies on the RC account's EBS
+encryption-by-default (verify; else use an encrypted storage class). See
+keycloak/charts/README.md.
+
 ## D-1.4 — Trusted principal in the ExternalId gate
 
 **Decision: jump-account root (D-T7) stands for the PoC.** Customer trust

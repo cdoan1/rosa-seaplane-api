@@ -15,6 +15,8 @@
 
 const AUTH_STORAGE_KEY = 'sc_auth';
 
+import { loadConfig } from './config';
+
 export interface AuthConfig {
   issuer: string; // e.g. https://<cloudfront-domain>/realms/poc
   clientId: string;
@@ -40,13 +42,14 @@ interface OidcDiscovery {
   end_session_endpoint?: string;
 }
 
+const runtimeConfig = loadConfig();
+
 function config(): AuthConfig {
-  const issuer = import.meta.env.VITE_OIDC_ISSUER as string | undefined;
-  const clientId = import.meta.env.VITE_OIDC_CLIENT_ID as string | undefined;
-  if (!issuer || !clientId) {
-    throw new Error('VITE_OIDC_ISSUER and VITE_OIDC_CLIENT_ID must be set at build time');
-  }
-  return { issuer: issuer.replace(/\/+$/, ''), clientId, redirectUri: window.location.origin };
+  return {
+    issuer: runtimeConfig.oidcIssuer.replace(/\/+$/, ''),
+    clientId: runtimeConfig.oidcClientId,
+    redirectUri: window.location.origin,
+  };
 }
 
 let discovery: Promise<OidcDiscovery> | undefined;

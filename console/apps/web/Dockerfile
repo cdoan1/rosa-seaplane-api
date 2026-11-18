@@ -3,13 +3,9 @@ WORKDIR /workspace
 COPY package.json tsconfig.base.json ./
 COPY packages ./packages
 COPY apps ./apps
-# Vite bakes these into the bundle at build time (import.meta.env).
-ARG VITE_API_BASE_URL
-ARG VITE_OIDC_ISSUER
-ARG VITE_OIDC_CLIENT_ID
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-ENV VITE_OIDC_ISSUER=$VITE_OIDC_ISSUER
-ENV VITE_OIDC_CLIENT_ID=$VITE_OIDC_CLIENT_ID
+# Configuration is deploy-time (window.__CONSOLE_CONFIG__ from a ConfigMap
+# served as /config.js), not baked at build time — one image serves every
+# environment. VITE_* values remain as a local-development fallback only.
 RUN npm ci
 RUN npm run build --workspace @seaplane/console-web
 

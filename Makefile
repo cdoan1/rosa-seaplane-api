@@ -30,8 +30,7 @@ IMAGE_REPO_CONSOLE    ?= quay.io/openshift-online/rosa-seaplane-console
 # CloudFront), and the public PKCE client ID.
 VITE_API_BASE_URL     ?=
 VITE_OIDC_ISSUER      ?=
-VITE_OIDC_CLIENT_ID   ?=
-IMAGE_TAG           ?= latest
+VITE_OIDC_CLIENT_ID   ?=IMAGE_TAG           ?= latest
 GIT_SHA             := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GOOS                ?= linux
 GOARCH              ?= amd64
@@ -161,10 +160,10 @@ help:
 	@echo ""
 	@echo "Images:"
 	@echo "  image-api            Platform API image"
-	@echo "  image-authorizer     Lambda authorizer image (Phase 4 PoC)"
-	@echo "  image-console        Console web image (Phase 4 PoC; needs VITE_API_BASE_URL,"
-	@echo "                       VITE_OIDC_ISSUER, VITE_OIDC_CLIENT_ID)"
 	@echo "  image-operator       Seaplane operator image"
+	@echo "  image-authorizer     Lambda authorizer image (Phase 4 PoC)"
+	@echo "  image-console        Console web image (Phase 4 PoC; env-agnostic —"
+	@echo "                       config comes from the /config.js ConfigMap)"
 
 # ── Build ────────────────────────────────────────────────────────────────
 
@@ -531,18 +530,12 @@ image-authorizer:
 		-t $(IMAGE_REPO_AUTHORIZER):$(IMAGE_TAG) .
 	$(CONTAINER_ENGINE) tag $(IMAGE_REPO_AUTHORIZER):$(IMAGE_TAG) $(IMAGE_REPO_AUTHORIZER):$(GIT_SHA)
 
-# The console image bakes the Vite build-time configuration; all three
-# values are required or the build fails fast.
+# The console image is environment-agnostic: runtime configuration is
+# served as /config.js from a ConfigMap (see console/charts). VITE_*
+# values remain a local-development fallback, never needed for the image.
 image-console:
-	@if [ -z "$(VITE_API_BASE_URL)" ] || [ -z "$(VITE_OIDC_ISSUER)" ] || [ -z "$(VITE_OIDC_CLIENT_ID)" ]; then \
-		echo "ERROR: image-console requires VITE_API_BASE_URL, VITE_OIDC_ISSUER, and VITE_OIDC_CLIENT_ID" >&2; \
-		exit 1; \
-	fi
 	$(CONTAINER_ENGINE) build -f console/apps/web/Dockerfile \
 		--platform $(GOOS)/$(GOARCH) \
-		--build-arg VITE_API_BASE_URL=$(VITE_API_BASE_URL) \
-		--build-arg VITE_OIDC_ISSUER=$(VITE_OIDC_ISSUER) \
-		--build-arg VITE_OIDC_CLIENT_ID=$(VITE_OIDC_CLIENT_ID) \
 		-t $(IMAGE_REPO_CONSOLE):$(IMAGE_TAG) console
 	$(CONTAINER_ENGINE) tag $(IMAGE_REPO_CONSOLE):$(IMAGE_TAG) $(IMAGE_REPO_CONSOLE):$(GIT_SHA)
 

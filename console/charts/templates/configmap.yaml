@@ -1,0 +1,19 @@
+{{- if .Values.console.config }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.console.app.name }}-config
+  namespace: {{ .Values.console.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.console.app.name }}
+data:
+  # Served as /config.js by nginx (subPath-mounted into the html root).
+  # None of these values are secrets: the gateway URL and issuer are public
+  # endpoints and the OIDC client is public (PKCE).
+  config.js: |
+    window.__CONSOLE_CONFIG__ = {
+      apiBaseUrl: {{ .Values.console.config.apiBaseUrl | quote }},
+      oidcIssuer: {{ .Values.console.config.oidcIssuer | quote }},
+      oidcClientId: {{ .Values.console.config.oidcClientId | quote }},
+    };
+{{- end }}

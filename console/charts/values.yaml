@@ -23,6 +23,15 @@ console:
   service:
     port: 8080
 
+  # Runtime configuration served as /config.js (deploy-time, not baked
+  # into the image — one image serves every environment). apiBaseUrl and
+  # oidcIssuer come from terraform outputs via ApplicationSet annotations;
+  # oidcClientId is the public PKCE client configured on the Keycloak realm.
+  config:
+    apiBaseUrl: ""
+    oidcIssuer: ""
+    oidcClientId: ""
+
   # TargetGroupBinding onto the console ALB target group created by the
   # custom-authorizer-gateway terraform module (rosa-seaplane).
   targetGroup:

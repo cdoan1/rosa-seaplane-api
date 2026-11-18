@@ -22,6 +22,11 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.console.service.port }}
+          volumeMounts:
+            - name: config
+              mountPath: /usr/share/nginx/html/config.js
+              subPath: config.js
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /
@@ -43,6 +48,10 @@ spec:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Values.console.app.name }}-config
 ---
 apiVersion: v1
 kind: Service

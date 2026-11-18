@@ -11,6 +11,7 @@
  */
 
 import { getToken } from './auth';
+import { loadConfig } from './config';
 
 export const SELECTED_ARN_HEADER = 'X-Seaplane-Arn';
 const SELECTED_ARN_STORAGE_KEY = 'sc_selected_arn';
@@ -35,10 +36,10 @@ export function getSelectedArn(): string | undefined {
   return selectedArn;
 }
 
+const runtimeConfig = loadConfig();
+
 function apiBase(): string {
-  const base = import.meta.env.VITE_API_BASE_URL as string | undefined;
-  if (!base) throw new Error('VITE_API_BASE_URL must be set at build time');
-  return base.replace(/\/+$/, '');
+  return runtimeConfig.apiBaseUrl.replace(/\/+$/, '');
 }
 
 /**

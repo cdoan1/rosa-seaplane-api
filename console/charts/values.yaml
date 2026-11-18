@@ -1,0 +1,30 @@
+console:
+  namespace: console
+
+  app:
+    name: console
+    # Built from console/apps/web with the VITE_* build args (gateway URL,
+    # OIDC issuer, client ID).
+    image:
+      repository: quay.io/redhat-user-workloads/rosa-tenant/rosa-seaplane-api-console
+      tag: "latest"
+      pullPolicy: Always
+
+    replicas: 1
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 128Mi
+
+  service:
+    port: 8080
+
+  # TargetGroupBinding onto the console ALB target group created by the
+  # custom-authorizer-gateway terraform module (rosa-seaplane).
+  targetGroup:
+    arn: ""
+    targetType: ip

@@ -1,0 +1,10 @@
+apiVersion: v2
+name: console
+description: >
+  PoC web console (Phase 4): the TypeScript console from console/apps/web,
+  served as static nginx content on the regional cluster behind an
+  internet-facing ALB. Authenticates through the custom-authorizer API
+  Gateway (PKCE against the PoC Keycloak).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

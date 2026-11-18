@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.console.app.name }}
+  namespace: {{ .Values.console.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.console.app.name }}
+spec:
+  replicas: {{ .Values.console.app.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.console.app.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.console.app.name }}
+    spec:
+      containers:
+        - name: web
+          image: "{{ .Values.console.app.image.repository }}:{{ .Values.console.app.image.tag }}"
+          imagePullPolicy: {{ .Values.console.app.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.console.service.port }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.console.app.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.console.app.name }}
+  namespace: {{ .Values.console.namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ .Values.console.app.name }}
+  ports:
+    - name: http
+      port: {{ .Values.console.service.port }}
+      targetPort: http

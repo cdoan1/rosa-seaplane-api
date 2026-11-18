@@ -22,8 +22,8 @@ helm-lint: ## Lint the platform-api Helm chart
 
 IMAGE_REPO_API        ?= quay.io/openshift-online/rosa-seaplane-api
 IMAGE_REPO_OPERATOR   ?= quay.io/openshift-online/seaplane-operator
-IMAGE_REPO_AUTHORIZER ?= quay.io/openshift-online/seaplane-authorizer
-IMAGE_REPO_CONSOLE    ?= quay.io/openshift-online/rosa-seaplane-console
+IMAGE_REPO_AUTHORIZER ?= quay.io/cdoan0/seaplane-authorizer
+IMAGE_REPO_CONSOLE    ?= quay.io/cdoan0/rosa-seaplane-console
 
 # Console local-development fallbacks for the Vite dev server only; the
 # deployed console reads window.__CONSOLE_CONFIG__ (ConfigMap /config.js).

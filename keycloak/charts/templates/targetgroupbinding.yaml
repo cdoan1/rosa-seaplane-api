@@ -1,0 +1,16 @@
+{{- if .Values.keycloak.targetGroup.arn }}
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata:
+  name: keycloak
+  namespace: {{ .Values.keycloak.namespace }}
+  annotations:
+    # aws-load-balancer-controller CRD may not exist yet when ArgoCD dry-runs this resource
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  serviceRef:
+    name: keycloak
+    port: {{ .Values.keycloak.service.port }}
+  targetGroupARN: {{ .Values.keycloak.targetGroup.arn }}
+  targetType: {{ .Values.keycloak.targetGroup.targetType }}
+{{- end }}

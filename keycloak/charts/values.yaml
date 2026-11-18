@@ -1,0 +1,60 @@
+keycloak:
+  # Namespace for the PoC Keycloak and its Postgres.
+  namespace: keycloak
+
+  app:
+    name: keycloak
+    image:
+      repository: quay.io/keycloak/keycloak
+      tag: "26.8.2"
+      pullPolicy: IfNotPresent
+
+    # KC_HOSTNAME is the public issuer URL — the CloudFront domain from the
+    # custom-authorizer-gateway terraform (keycloak_url output). Tokens carry
+    # this as their issuer; changing it re-mints links (poc-decisions D-P4-token).
+    hostname: ""
+
+    resources:
+      requests:
+        cpu: 250m
+        memory: 768Mi
+      limits:
+        cpu: "2"
+        memory: 2Gi
+
+  postgres:
+    image:
+      repository: registry.redhat.io/rhel9/postgresql-16
+      tag: latest
+      pullPolicy: IfNotPresent
+    database: keycloak
+    storage:
+      size: 1Gi
+      # Empty uses the cluster default storage class.
+      className: ""
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+  # PoC-only bootstrap credentials, rendered into the keycloak-secrets
+  # Secret. Set createSecret=true with values for a throwaway PoC; for
+  # anything else, manage the Secret externally (external-secrets) and
+  # leave createSecret=false.
+  createSecret: false
+  adminUsername: ""
+  adminPassword: ""
+  postgresUsername: "keycloak"
+  postgresPassword: ""
+
+  service:
+    port: 8080
+
+  # TargetGroupBinding onto the Keycloak ALB target group created by the
+  # custom-authorizer-gateway terraform module.
+  targetGroup:
+    arn: ""
+    targetType: ip

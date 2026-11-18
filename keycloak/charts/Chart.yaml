@@ -1,0 +1,10 @@
+apiVersion: v2
+name: keycloak
+description: >
+  PoC Keycloak for the Phase 4 custom-authorizer flow: the RH-token issuer
+  deployed on the regional cluster behind CloudFront (rosa-seaplane
+  terraform modules/custom-authorizer-gateway). Adapted from the day-o
+  reference repo's deploy/keycloak manifests for EKS + TargetGroupBinding.
+type: application
+version: 0.1.0
+appVersion: "26.8.2"

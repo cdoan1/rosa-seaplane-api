@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-config
+  namespace: {{ .Values.keycloak.namespace }}
+data:
+  KC_DB: "postgres"
+  KC_DB_URL: "jdbc:postgresql://keycloak-postgres:5432/{{ .Values.keycloak.postgres.database }}"
+  # The public issuer URL (CloudFront domain). Tokens carry this as iss;
+  # do not derive it from arbitrary Host headers.
+  KC_HOSTNAME: {{ .Values.keycloak.app.hostname | quote }}
+  KC_HTTP_ENABLED: "true"
+  KC_PROXY_HEADERS: "xforwarded"
+  KC_HEALTH_ENABLED: "true"
+  KC_METRICS_ENABLED: "false"

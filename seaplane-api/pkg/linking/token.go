@@ -41,6 +41,18 @@ type TokenVerifier interface {
 	Verify(ctx context.Context, token string) (subject string, err error)
 }
 
+// VerifiedToken is the outcome of a successful token verification.
+type VerifiedToken struct {
+	Subject   string
+	ExpiresAt time.Time
+}
+
+// ClaimsVerifier verifies tokens and exposes the expiry, so callers (the
+// Lambda authorizer) can bound cache TTLs by the token's remaining life.
+type ClaimsVerifier interface {
+	VerifyClaims(ctx context.Context, token string) (VerifiedToken, error)
+}
+
 // TokenConfig configures JWT verification.
 type TokenConfig struct {
 	Issuer   string // expected iss claim
@@ -80,10 +92,10 @@ func NewJWTVerifier(cfg TokenConfig) *JWTVerifier {
 	}
 }
 
-// Verify implements TokenVerifier.
-func (v *JWTVerifier) Verify(ctx context.Context, token string) (string, error) {
+// VerifyClaims implements ClaimsVerifier.
+func (v *JWTVerifier) VerifyClaims(ctx context.Context, token string) (VerifiedToken, error) {
 	if v.cfg.Issuer == "" || v.cfg.JWKSURL == "" {
-		return "", errors.New("token verification is not configured (issuer/JWKS)")
+		return VerifiedToken{}, errors.New("token verification is not configured (issuer/JWKS)")
 	}
 
 	claims := &jwt.RegisteredClaims{}
@@ -99,12 +111,18 @@ func (v *JWTVerifier) Verify(ctx context.Context, token string) (string, error) 
 		return key, nil
 	}, jwt.WithIssuer(v.cfg.Issuer), jwt.WithExpirationRequired(), jwt.WithAudience(v.cfg.Audience))
 	if err != nil {
-		return "", fmt.Errorf("verify token: %w", err)
+		return VerifiedToken{}, fmt.Errorf("verify token: %w", err)
 	}
 	if claims.Subject == "" {
-		return "", errors.New("token has no subject claim")
+		return VerifiedToken{}, errors.New("token has no subject claim")
 	}
-	return claims.Subject, nil
+	return VerifiedToken{Subject: claims.Subject, ExpiresAt: claims.ExpiresAt.Time}, nil
+}
+
+// Verify implements TokenVerifier.
+func (v *JWTVerifier) Verify(ctx context.Context, token string) (string, error) {
+	vt, err := v.VerifyClaims(ctx, token)
+	return vt.Subject, err
 }
 
 // key resolves the RSA public key for kid, refreshing the cached JWKS when

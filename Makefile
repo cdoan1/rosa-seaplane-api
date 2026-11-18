@@ -9,7 +9,8 @@
     codegen-passthrough-clobber \
 	codegen-conversion verify-conversion \
 	generate-openapi verify-openapi swagger-ui \
-	image-api image-operator image-push-api image-push-operator
+	image-api image-operator image-authorizer image-console \
+	image-push-api image-push-operator image-push-authorizer image-push-console
 
 helm-lint: ## Lint the platform-api Helm chart
 	helm lint seaplane-api/charts \
@@ -19,8 +20,17 @@ helm-lint: ## Lint the platform-api Helm chart
 
 # ── Configuration ────────────────────────────────────────────────────────
 
-IMAGE_REPO_API      ?= quay.io/openshift-online/rosa-seaplane-api
-IMAGE_REPO_OPERATOR ?= quay.io/openshift-online/seaplane-operator
+IMAGE_REPO_API        ?= quay.io/openshift-online/rosa-seaplane-api
+IMAGE_REPO_OPERATOR   ?= quay.io/openshift-online/seaplane-operator
+IMAGE_REPO_AUTHORIZER ?= quay.io/openshift-online/seaplane-authorizer
+IMAGE_REPO_CONSOLE    ?= quay.io/openshift-online/rosa-seaplane-console
+
+# Console build-time configuration (Vite bakes these into the bundle):
+# the custom-authorizer gateway URL, the OIDC issuer (PoC Keycloak behind
+# CloudFront), and the public PKCE client ID.
+VITE_API_BASE_URL     ?=
+VITE_OIDC_ISSUER      ?=
+VITE_OIDC_CLIENT_ID   ?=
 IMAGE_TAG           ?= latest
 GIT_SHA             := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GOOS                ?= linux
@@ -151,6 +161,9 @@ help:
 	@echo ""
 	@echo "Images:"
 	@echo "  image-api            Platform API image"
+	@echo "  image-authorizer     Lambda authorizer image (Phase 4 PoC)"
+	@echo "  image-console        Console web image (Phase 4 PoC; needs VITE_API_BASE_URL,"
+	@echo "                       VITE_OIDC_ISSUER, VITE_OIDC_CLIENT_ID)"
 	@echo "  image-operator       Seaplane operator image"
 
 # ── Build ────────────────────────────────────────────────────────────────
@@ -509,6 +522,30 @@ image-operator:
 		-t $(IMAGE_REPO_OPERATOR):$(IMAGE_TAG) .
 	$(CONTAINER_ENGINE) tag $(IMAGE_REPO_OPERATOR):$(IMAGE_TAG) $(IMAGE_REPO_OPERATOR):$(GIT_SHA)
 
+# The Lambda authorizer image builds from the repo root context: it needs
+# both seaplane-authorizer/ and the sibling seaplane-api/pkg/linking module
+# (replace directive) it shares token verification with.
+image-authorizer:
+	$(CONTAINER_ENGINE) build -f seaplane-authorizer/Dockerfile \
+		--platform $(GOOS)/$(GOARCH) \
+		-t $(IMAGE_REPO_AUTHORIZER):$(IMAGE_TAG) .
+	$(CONTAINER_ENGINE) tag $(IMAGE_REPO_AUTHORIZER):$(IMAGE_TAG) $(IMAGE_REPO_AUTHORIZER):$(GIT_SHA)
+
+# The console image bakes the Vite build-time configuration; all three
+# values are required or the build fails fast.
+image-console:
+	@if [ -z "$(VITE_API_BASE_URL)" ] || [ -z "$(VITE_OIDC_ISSUER)" ] || [ -z "$(VITE_OIDC_CLIENT_ID)" ]; then \
+		echo "ERROR: image-console requires VITE_API_BASE_URL, VITE_OIDC_ISSUER, and VITE_OIDC_CLIENT_ID" >&2; \
+		exit 1; \
+	fi
+	$(CONTAINER_ENGINE) build -f console/apps/web/Dockerfile \
+		--platform $(GOOS)/$(GOARCH) \
+		--build-arg VITE_API_BASE_URL=$(VITE_API_BASE_URL) \
+		--build-arg VITE_OIDC_ISSUER=$(VITE_OIDC_ISSUER) \
+		--build-arg VITE_OIDC_CLIENT_ID=$(VITE_OIDC_CLIENT_ID) \
+		-t $(IMAGE_REPO_CONSOLE):$(IMAGE_TAG) console
+	$(CONTAINER_ENGINE) tag $(IMAGE_REPO_CONSOLE):$(IMAGE_TAG) $(IMAGE_REPO_CONSOLE):$(GIT_SHA)
+
 image-push-api: image-api
 	$(CONTAINER_ENGINE) push $(IMAGE_REPO_API):$(IMAGE_TAG)
 	$(CONTAINER_ENGINE) push $(IMAGE_REPO_API):$(GIT_SHA)
@@ -516,6 +553,14 @@ image-push-api: image-api
 image-push-operator: image-operator
 	$(CONTAINER_ENGINE) push $(IMAGE_REPO_OPERATOR):$(IMAGE_TAG)
 	$(CONTAINER_ENGINE) push $(IMAGE_REPO_OPERATOR):$(GIT_SHA)
+
+image-push-authorizer: image-authorizer
+	$(CONTAINER_ENGINE) push $(IMAGE_REPO_AUTHORIZER):$(IMAGE_TAG)
+	$(CONTAINER_ENGINE) push $(IMAGE_REPO_AUTHORIZER):$(GIT_SHA)
+
+image-push-console: image-console
+	$(CONTAINER_ENGINE) push $(IMAGE_REPO_CONSOLE):$(IMAGE_TAG)
+	$(CONTAINER_ENGINE) push $(IMAGE_REPO_CONSOLE):$(GIT_SHA)
 
 # ── Clean ────────────────────────────────────────────────────────────────
 

@@ -25,12 +25,13 @@ IMAGE_REPO_OPERATOR   ?= quay.io/openshift-online/seaplane-operator
 IMAGE_REPO_AUTHORIZER ?= quay.io/openshift-online/seaplane-authorizer
 IMAGE_REPO_CONSOLE    ?= quay.io/openshift-online/rosa-seaplane-console
 
-# Console build-time configuration (Vite bakes these into the bundle):
-# the custom-authorizer gateway URL, the OIDC issuer (PoC Keycloak behind
-# CloudFront), and the public PKCE client ID.
+# Console local-development fallbacks for the Vite dev server only; the
+# deployed console reads window.__CONSOLE_CONFIG__ (ConfigMap /config.js).
 VITE_API_BASE_URL     ?=
 VITE_OIDC_ISSUER      ?=
-VITE_OIDC_CLIENT_ID   ?=IMAGE_TAG           ?= latest
+VITE_OIDC_CLIENT_ID   ?=
+
+IMAGE_TAG           ?= latest
 GIT_SHA             := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GOOS                ?= linux
 GOARCH              ?= amd64

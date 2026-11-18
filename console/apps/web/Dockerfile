@@ -1,6 +1,6 @@
 FROM node:22-alpine AS build
 WORKDIR /workspace
-COPY package.json tsconfig.base.json ./
+COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages ./packages
 COPY apps ./apps
 # Configuration is deploy-time (window.__CONSOLE_CONFIG__ from a ConfigMap

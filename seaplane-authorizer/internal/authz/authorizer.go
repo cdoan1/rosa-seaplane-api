@@ -53,9 +53,11 @@ const (
 	SelectedARNHeader   = "X-Seaplane-Arn"
 )
 
-// LinkLookup is the subset of the linking store the authorizer needs.
+// LinkLookup is the subset of the linking store the authorizer needs: a
+// point lookup by composite key, so Flow 2b costs one DynamoDB GetItem
+// regardless of how many ARNs the subject has linked.
 type LinkLookup interface {
-	ListLinks(ctx context.Context, subject string) ([]linking.Link, error)
+	GetLink(ctx context.Context, subject, arn string) (bool, error)
 }
 
 // Authorizer handles API Gateway REQUEST authorizer events.
@@ -125,7 +127,10 @@ func (a *Authorizer) Handle(ctx context.Context, req events.APIGatewayCustomAuth
 		return deny(), nil
 	}
 	if !linked {
-		a.cache.put(token, selectedARN, decision{allow: false}, time.Now().Add(a.cache.ttl))
+		// Negative decisions get a much shorter TTL than allows: a stale
+		// deny would block a freshly linked ARN for the whole window, and
+		// the point read being skipped is cheap.
+		a.cache.put(token, selectedARN, decision{allow: false}, time.Now().Add(denyTTL(a.cache.ttl)))
 		return deny(), nil
 	}
 
@@ -134,18 +139,21 @@ func (a *Authorizer) Handle(ctx context.Context, req events.APIGatewayCustomAuth
 	return allow(req, d.subject, d.callerARN, d.accountID), nil
 }
 
-// isLinked reports whether subject has a link to arn.
+// isLinked reports whether subject has a link to arn (point lookup).
 func (a *Authorizer) isLinked(ctx context.Context, subject, arn string) (bool, error) {
-	links, err := a.links.ListLinks(ctx, subject)
-	if err != nil {
-		return false, err
+	return a.links.GetLink(ctx, subject, arn)
+}
+
+// denyTTL bounds negative-decision caching: the smaller of 30 seconds and
+// the allow-TTL. Stale denials lock users out of freshly linked ARNs, so
+// they expire quickly; DynamoDB point reads are cheap enough that the
+// extra lookups are acceptable.
+func denyTTL(allowTTL time.Duration) time.Duration {
+	const maxDenyTTL = 30 * time.Second
+	if allowTTL < maxDenyTTL {
+		return allowTTL
 	}
-	for _, l := range links {
-		if l.ARN == arn {
-			return true, nil
-		}
-	}
-	return false, nil
+	return maxDenyTTL
 }
 
 func bearerToken(header string) string {

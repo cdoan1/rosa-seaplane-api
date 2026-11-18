@@ -172,6 +172,7 @@ func (h *LinkingHandler) List(w http.ResponseWriter, r *http.Request) {
 	for _, l := range links {
 		resp.Arns = append(resp.Arns, linkEntry{ARN: l.ARN, AccountID: l.AccountID})
 	}
+	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		h.logger.Error("failed to encode link list", "error", err)
 	}

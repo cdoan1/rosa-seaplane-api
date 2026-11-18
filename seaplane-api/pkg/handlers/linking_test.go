@@ -58,6 +58,11 @@ func (f *fakeStore) DeleteLink(_ context.Context, subject, arn string) error {
 	return nil
 }
 
+func (f *fakeStore) GetLink(_ context.Context, subject, arn string) (bool, error) {
+	_, ok := f.links[subject+"\x00"+arn]
+	return ok, nil
+}
+
 func (f *fakeStore) ListLinks(_ context.Context, subject string) ([]linking.Link, error) {
 	var out []linking.Link
 	for _, key := range f.order {

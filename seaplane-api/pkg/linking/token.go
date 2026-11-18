@@ -99,6 +99,16 @@ func (v *JWTVerifier) VerifyClaims(ctx context.Context, token string) (VerifiedT
 	}
 
 	claims := &jwt.RegisteredClaims{}
+	parserOpts := []jwt.ParserOption{
+		jwt.WithIssuer(v.cfg.Issuer),
+		jwt.WithExpirationRequired(),
+	}
+	// Only enforce the audience when one is configured: passing an empty
+	// string to jwt.WithAudience would make the validator require the
+	// token's aud to contain "" and reject well-formed IdP tokens.
+	if v.cfg.Audience != "" {
+		parserOpts = append(parserOpts, jwt.WithAudience(v.cfg.Audience))
+	}
 	_, err := jwt.ParseWithClaims(token, claims, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method %v", t.Header["alg"])
@@ -109,7 +119,7 @@ func (v *JWTVerifier) VerifyClaims(ctx context.Context, token string) (VerifiedT
 			return nil, err
 		}
 		return key, nil
-	}, jwt.WithIssuer(v.cfg.Issuer), jwt.WithExpirationRequired(), jwt.WithAudience(v.cfg.Audience))
+	}, parserOpts...)
 	if err != nil {
 		return VerifiedToken{}, fmt.Errorf("verify token: %w", err)
 	}

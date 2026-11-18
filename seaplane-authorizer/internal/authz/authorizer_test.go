@@ -36,21 +36,20 @@ const (
 	testMethodARN = "arn:aws:execute-api:us-east-1:123:api/stage/GET/"
 )
 
-// fakeLinks is an in-memory LinkLookup.
+// fakeLinks is an in-memory LinkLookup (point lookups over a slice).
 type fakeLinks struct {
 	links []linking.Link
 	calls int
 }
 
-func (f *fakeLinks) ListLinks(_ context.Context, subject string) ([]linking.Link, error) {
+func (f *fakeLinks) GetLink(_ context.Context, subject, arn string) (bool, error) {
 	f.calls++
-	var out []linking.Link
 	for _, l := range f.links {
-		if l.Subject == subject {
-			out = append(out, l)
+		if l.Subject == subject && l.ARN == arn {
+			return true, nil
 		}
 	}
-	return out, nil
+	return false, nil
 }
 
 // fakeVerifier verifies any token whose value is "good".
@@ -239,3 +238,12 @@ func TestDecisionCacheEvictsWhenFull(t *testing.T) {
 }
 
 // Compile-time: the HTTP server import is only used by helpers below if
+
+func TestDenyTTLCapped(t *testing.T) {
+	if got := denyTTL(5 * time.Minute); got != 30*time.Second {
+		t.Fatalf("deny TTL must cap at 30s, got %v", got)
+	}
+	if got := denyTTL(10 * time.Second); got != 10*time.Second {
+		t.Fatalf("deny TTL must not exceed the allow TTL, got %v", got)
+	}
+}

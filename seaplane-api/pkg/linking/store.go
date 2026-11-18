@@ -29,7 +29,6 @@ package linking
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"time"
@@ -64,6 +63,9 @@ type Store interface {
 	DeleteLink(ctx context.Context, subject, arn string) error
 	// ListLinks returns the ARNs linked to subject.
 	ListLinks(ctx context.Context, subject string) ([]Link, error)
+	// GetLink reports whether arn is linked to subject — a point lookup by
+	// composite key, cheaper than ListLinks when checking one ARN.
+	GetLink(ctx context.Context, subject, arn string) (bool, error)
 }
 
 // DynamoStore implements Store against the linking table.
@@ -90,8 +92,12 @@ func ValidateARN(arn string) (accountID string, err error) {
 	return m[1], nil
 }
 
-// PutLink links arn to subject with a conditional write that tolerates an
-// existing identical link (idempotent).
+// PutLink links arn to subject with a write that tolerates an existing
+// identical link (idempotent).
+//
+// PoC scope: there is no per-subject link-count limit — a production
+// implementation needs a cap (ConditionExpression or pre-check) to bound
+// what a compromised client can create; recorded in poc-decisions.md D-T4.
 func (s *DynamoStore) PutLink(ctx context.Context, subject, arn string) error {
 	accountID, err := ValidateARN(arn)
 	if err != nil {
@@ -112,7 +118,10 @@ func (s *DynamoStore) PutLink(ctx context.Context, subject, arn string) error {
 	return nil
 }
 
-// DeleteLink removes the link; a missing link is success.
+// DeleteLink removes the link. DynamoDB DeleteItem is idempotent — it
+// succeeds silently when the item does not exist — so no not-found
+// handling is needed. (ResourceNotFoundException on DeleteItem would mean
+// the *table* is missing, which is a configuration error worth surfacing.)
 func (s *DynamoStore) DeleteLink(ctx context.Context, subject, arn string) error {
 	_, err := s.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName: aws.String(s.tableName),
@@ -122,16 +131,31 @@ func (s *DynamoStore) DeleteLink(ctx context.Context, subject, arn string) error
 		},
 	})
 	if err != nil {
-		var notFound *dynamodbtypes.ResourceNotFoundException
-		if errors.As(err, &notFound) {
-			return nil
-		}
 		return fmt.Errorf("delete link: %w", err)
 	}
 	return nil
 }
 
-// ListLinks returns all links for subject, newest first.
+// GetLink reports whether arn is linked to subject, via a single GetItem
+// on the composite key (PK sub, SK arn) — O(1) instead of reading every
+// link for the subject.
+func (s *DynamoStore) GetLink(ctx context.Context, subject, arn string) (bool, error) {
+	resp, err := s.client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(s.tableName),
+		Key: map[string]dynamodbtypes.AttributeValue{
+			AttrSubject: &dynamodbtypes.AttributeValueMemberS{Value: subject},
+			AttrARN:     &dynamodbtypes.AttributeValueMemberS{Value: arn},
+		},
+	})
+	if err != nil {
+		return false, fmt.Errorf("get link: %w", err)
+	}
+	return resp.Item != nil, nil
+}
+
+// ListLinks returns all links for subject, sorted by ARN (the sort key)
+// descending. Note this is ARN-string order, not temporal — the UI sorts
+// client-side and nothing depends on the ordering.
 func (s *DynamoStore) ListLinks(ctx context.Context, subject string) ([]Link, error) {
 	resp, err := s.client.Query(ctx, &dynamodb.QueryInput{
 		TableName:              aws.String(s.tableName),

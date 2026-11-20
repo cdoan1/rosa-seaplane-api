@@ -1,5 +1,15 @@
 # Changes
 
+## 0.1.26 Nov 20 2026
+
+- feat: manage default ingress DNS and serving cert for hosted clusters
+- chore: bump to k8s 0.37 and pin released openshift/hypershift deps
+- chore(clientset): bump version to clientset/v0.1.27
+- added more testing of ECR env variables, fixed write-mode of ImageContainerSources
+- chore(clientset): bump version to clientset/v0.1.26
+- Remove incorrect kubelet association from ClusterConfiguration
+
+
 ## 0.1.27 Nov 10 2026
 
 - added more testing of ECR env variables, fixed write-mode of ImageContainerSources
